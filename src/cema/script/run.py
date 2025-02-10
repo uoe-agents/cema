@@ -11,12 +11,16 @@ import typer
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from torch import cuda
 from tqdm.contrib.logging import logging_redirect_tqdm
 
 from igp2.core.config import Configuration
 import gofi
 from cema import setup_cema_logging
+try:
+    from cema.llm import verbalize
+    from cema.llm import LMInterface, ChatHandlerFactory, ChatHandlerConfig
+except ImportError as e:
+    print(e)
 from cema.xavi import QueryType, plot_simulation
 from cema.oxavi import OFollowLaneCL
 from cema.script.util import generate_random_frame, load_config, parse_query, \
@@ -129,13 +133,6 @@ def llm(
     ] = None
 ):
     """ Explain a scenario with the given ID and configuration using an LLM model. """
-    if not cuda.is_available():
-        logger.error("CUDA is not available. Exiting . . .")
-        return 1
-    else:
-        from cema.llm import verbalize
-        from cema.llm import LMInterface, ChatHandlerFactory, ChatHandlerConfig
-
     # Create folder structure
     os.makedirs("output", exist_ok=True)
     output_path = os.path.join("output", f"scenario_{scenario}")

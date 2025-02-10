@@ -9,8 +9,8 @@ import numpy as np
 import igp2 as ip
 from igp2.opendrive.elements.geometry import ramer_douglas
 
-import xavi
-import llm.util as util
+from cema import xavi
+from cema.llm import util
 
 
 logger = logging.getLogger(__name__)

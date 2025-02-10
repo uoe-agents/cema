@@ -4,13 +4,16 @@ import sys
 import logging
 from datetime import datetime
 
-from torch import cuda
 
 from cema import xavi, oxavi
-if cuda.is_available():
-    from cema import llm
-else:
-    print("CUDA is not available. Skipping cema.llm import.")
+try:
+    from torch import cuda
+    if cuda.is_available():
+        from cema import llm
+    else:
+        print("CUDA is not available. Skipping cema.llm import.")
+except ImportError as e:
+    print(str(e))
 
 
 def setup_cema_logging(log_dir: str = None, log_name: str = None):
