@@ -1,10 +1,10 @@
+""" Utilties to load configurations, saves, and generate random frames. """
 import os
 import sys
 import json
 import logging
 import pickle
-from typing import Dict, Any, List
-from datetime import datetime
+from typing import Dict, Any, List, Tuple, Union
 
 from shapely import Polygon
 import matplotlib.pyplot as plt
@@ -32,6 +32,22 @@ def load_config(config_path: str = None, scenario: int = None) -> Dict[str, Any]
     else:
         raise ValueError("No scenario was specified!")
     return json.load(open(path, "r", encoding="utf-8"))
+
+
+def load_scenario(scenario_id: int,
+                  query_idx: int) -> Tuple[Union[xavi.XAVIAgent, oxavi.OXAVIAgent], xavi.Query]:
+    """ Load the scenario and query for the given scenario ID and query index."""
+    scenario_path = os.path.join("output", f"scenario_{scenario_id}")
+    query_path = os.path.join("scenarios", "queries", f"query_scenario{scenario_id}.json")
+    queries = json.load(open(query_path, encoding="utf-8"))
+    query = xavi.Query(**queries[query_idx])
+    agent_path = os.path.join(scenario_path, f"agent_t{query.t_query}_m{query.type}.pkl")
+    sys.path.append("./src/cema")  # Add path to CEMA to fix unpickling errors
+    xavi_agent = pickle.load(open(agent_path, "rb"))
+    sd_path = os.path.join(scenario_path, f"sd_t{query.t_query}_m{query.type}.pkl")
+    if os.path.exists(sd_path):
+        xavi_agent._cf_sampling_distribution = pickle.load(open(sd_path, "rb"))
+    return xavi_agent, query
 
 
 def parse_query(query_path: str = None, scenario: int = None) -> List[xavi.Query]:

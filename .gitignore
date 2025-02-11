@@ -136,3 +136,6 @@ dmypy.json
 output/
 
 *.bak
+
+.ruff_cache/
+output/

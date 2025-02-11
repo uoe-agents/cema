@@ -1,10 +1,7 @@
 """ Evaluate the robustness of the explanation generation with increasing sample sizes
 and distribution smoothing. Also plot explanation reults."""
-import os
-import json
-import pickle
 import logging
-from typing import Tuple, Union, Dict, Any
+from typing import Union, Dict, Any
 
 import numpy as np
 from tqdm import trange, tqdm
@@ -14,20 +11,6 @@ from cema import xavi, oxavi
 logger = logging.getLogger(__name__)
 SAMPLE_LIMITS = (5, 101)
 DISTRIBUTION_ALPHAS = np.arange(0.0, 5.1, 0.1)
-
-
-def load_scenario(scenario_id: int, query_idx: int) -> Tuple[Union[xavi.XAVIAgent, oxavi.OXAVIAgent], xavi.Query]:
-    """ Load the scenario and query for the given scenario ID and query index."""
-    scenario_path = os.path.join("output", f"scenario_{scenario_id}")
-    query_path = os.path.join("scenarios", "queries", f"query_scenario{scenario_id}.json")
-    queries = json.load(open(query_path, encoding="utf-8"))
-    query = xavi.Query(**queries[query_idx])
-    agent_path = os.path.join(scenario_path, f"agent_t{query.t_query}_m{query.type}.pkl")
-    xavi_agent = pickle.load(open(agent_path, "rb"))
-    sd_path = os.path.join(scenario_path, f"sd_t{query.t_query}_m{query.type}.pkl")
-    if os.path.exists(sd_path):
-        xavi_agent._cf_sampling_distribution = pickle.load(open(sd_path, "rb"))
-    return xavi_agent, query
 
 
 def sampling_robustness(

@@ -16,7 +16,7 @@ except ImportError as e:
     print(str(e))
 
 
-def setup_cema_logging(log_dir: str = None, log_name: str = None):
+def setup_cema_logging(log_dir: str = None, log_name: str = None, log_level: int = logging.INFO):
     """ Setup the logging configuration for the CEMA application
 
     Args:
@@ -27,7 +27,7 @@ def setup_cema_logging(log_dir: str = None, log_name: str = None):
     log_formatter = logging.Formatter(
         "[%(threadName)-10.10s:%(name)-20.20s] [%(levelname)-6.6s]  %(message)s")
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
+    root_logger.setLevel(log_level)
     logging.getLogger("igp2.core.velocitysmoother").setLevel(logging.INFO)
     logging.getLogger("matplotlib").setLevel(logging.INFO)
     logging.getLogger("fontTools").setLevel(logging.WARNING)

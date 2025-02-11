@@ -1,11 +1,11 @@
 """ Command line interface for generating and evaluations explanation with CEMA. """
 import os
-import sys
 import random
 import logging
 import pickle
 import json
 from typing_extensions import Annotated
+
 
 import typer
 import numpy as np
@@ -18,18 +18,20 @@ import gofi
 from cema import setup_cema_logging
 try:
     from cema.llm import verbalize
-    from cema.llm import LMInterface, ChatHandlerFactory, ChatHandlerConfig
+    from cema.llm import ChatHandlerFactory, ChatHandlerConfig
 except ImportError as e:
     print(e)
 from cema.xavi import QueryType, plot_simulation
 from cema.oxavi import OFollowLaneCL
 from cema.script.util import generate_random_frame, load_config, parse_query, \
-    create_agent, run_simple_simulation
-from cema.script.evaluation import sampling_robustness, distribution_robustness, load_scenario
+    create_agent, run_simple_simulation, load_scenario
+from cema.script.evaluation import sampling_robustness, distribution_robustness
 from cema.script.plotting import plot_distribution_results, plot_sampling_results, plot_explanation
 
 
 logger = logging.getLogger(__name__)
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 app = typer.Typer()
 
 
@@ -113,14 +115,14 @@ def explain(
 
 @app.command()
 def llm(
-    model : Annotated[
-        str,
-        typer.Argument(help="LLM model name.", metavar="M")
-    ] = "meta-llama/Llama-3.2-1B-Instruct",
     scenario: Annotated[
         int,
         typer.Argument(help="The ID of the scenario to execute.", metavar="S", min=0)
     ] = None,
+    model : Annotated[
+        str,
+        typer.Option(help="LLM model name used in model_configs.json.")
+    ] = "llama-1B",
     query: Annotated[
         int,
         typer.Option(
@@ -139,6 +141,8 @@ def llm(
     os.makedirs(output_path, exist_ok=True)
     log_path = os.path.join(output_path, "logs")
     os.makedirs(log_path, exist_ok=True)
+    output_path = os.path.join(output_path, "llm")
+    os.makedirs(output_path, exist_ok=True)
 
     # Setup logging
     setup_cema_logging(log_dir=log_path, log_name="llm")
@@ -159,15 +163,18 @@ def llm(
         control_signals=["position", "speed"])
     logger.info("Verbalized scenario: %s", verbalized_scenario)
 
-    # Load model and chat handler
+    # Load LLM interaction interface and scenario
     configs = json.load(open("scenarios/llm/model_configs.json", "r", encoding="utf-8"))
-    assert model in configs, f"Model {model} not found in model_configs.json"
-    config = configs["base"].update(configs[model])
+    config = configs["base"]
+    if model in configs:
+        config.update(configs[model])
+    else:
+        logger.warning("Model '%s' not found in model_configs.json", model)
     config = ChatHandlerConfig(config)
 
-    # Load LLM interaction interface and scenario
-    chat_handler = ChatHandlerFactory.create_chat_handler(config)
-    interface = LMInterface(model, chat_handler)
+    chat_handler = ChatHandlerFactory.create_chat_handler(model, config)
+    response, _ = chat_handler.interact(verbalized_scenario)
+    print(response)
 
     return 1
 
@@ -193,9 +200,6 @@ def evaluate(
 ):
     """ Evaluate the robustness of the explanation generation with increasing sample sizes
     and distribution smoothing. Also plot explanation reults."""
-
-    matplotlib.rcParams['pdf.fonttype'] = 42
-    matplotlib.rcParams['ps.fonttype'] = 42
 
     # Setup output directories
     output_path = os.path.join("output", f"scenario_{scenario}")
@@ -247,7 +251,6 @@ def evaluate(
             distribution_results = pickle.load(open(distribution_path, "rb"))
         plot_distribution_results(distribution_results, plot_path_query, query_str)
 
-
     # Run explanation generation with increasing sample sizes
     if size:
         logger.info("Running sample size robustness evaluation . . .")
@@ -263,10 +266,17 @@ def evaluate(
     return 1
 
 
+@app.callback()
+def main(debug: Annotated[bool, typer.Option(help="Whether to run in debug mode.")] = False):
+    """ Set debug level and run the application. """
+    if debug:
+        logging.getLogger().setLevel(logging.DEBUG)
+
+
 def cli():
-    """ Run the command line interface. """
+    """ Run CLI. """
     app()
 
 
 if __name__ == "__main__":
-    sys.exit(cli())
+    cli()

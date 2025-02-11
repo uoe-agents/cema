@@ -179,7 +179,8 @@ def agents(observations: Dict[int, Tuple[ip.StateTrajectory, ip.AgentState]], **
              the complexity of the verbalization. ([1]/int).
         rounding: Number of decimal places to round the values to ([2]/int).
         control_signals: List of control signals to include in the verbalization.
-            Possible values: ["time", "timesteps", "position", "speed", "acceleration", "heading"].
+            Possible values: ["time", "timesteps", "position", "speed",
+                              "acceleration", "heading", "steering"].
             Default is all control signals except time.
 
     Returns:
@@ -216,6 +217,8 @@ The ego vehicle observed the following control signals for each agent:
                 ret += f"  Acceleration: {util.ndarray2str(trajectory.acceleration, rounding)}\n"
             elif signal == "heading":
                 ret += f"  Heading: {util.ndarray2str(trajectory.heading, rounding)}\n"
+            elif signal == "steering":
+                ret += f"  Steering: {util.ndarray2str(trajectory.angular_velocity, rounding)}\n"
         ret += "\n"
 
     return ret[:-1]  # Remove the last newline
