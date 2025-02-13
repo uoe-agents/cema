@@ -2,14 +2,15 @@
 including the road layout and the agent positions. """
 
 import logging
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 
 import re
 import numpy as np
 import igp2 as ip
 from igp2.opendrive.elements.geometry import ramer_douglas
 
-from cema import xavi
+from cema.xavi.matching import ActionSegment
+from cema.xavi.query import Query, QueryType
 from cema.llm import util
 
 
@@ -36,11 +37,16 @@ Intersections:
 """
 
 
+# def prompt(context: str, question: str) -> str:
+#     """ Create a prompt from the given context and question. """
+#     ret = "Considering the context, answer the question"
+
+
 def scenario(
         config: Dict,
         scenario_map: ip.Map,
-        observations: Dict[int, Tuple[ip.StateTrajectory, ip.AgentState]],
-        query_obj: xavi.Query,
+        observations: Dict[int, Tuple[ip.StateTrajectory, ip.AgentState, List[ActionSegment]]],
+        query_obj: Query,
         **kwargs) -> str:
     """ Utility function to verbalize the entire scenario.
 
@@ -56,10 +62,18 @@ def scenario(
         add_agents: Whether to add the agent descriptions ([True]/False).
         add_query: Whether to add the user query ([True]/False).
         add_metadata: Whether to add metadata before descriptions ([False]/True).
-        lanes: Whether to add lane descriptions ([True]/False).
-        intersections: Whether to add intersection descriptions ([True]/False).
-        intersection_links: Whether to add intersection lane links (True/[False]).
+        add_lanes: Whether to add lane descriptions ([True]/False).
+        add_intersections: Whether to add intersection descriptions ([True]/False).
+        add_intersection_links: Whether to add intersection lane links (True/[False]).
+        add_t_query: Whether to include the time of the query (True/[False]).
+        add_factual: Whether to include factual action if present ([True]/False).
         resolution: The resolution of the road midline (default=0.01).
+        control_signals: List of control signals to include in the verbalization.
+            Possible values: ["time", "timesteps", "position", "speed",
+                              "acceleration", "heading", "steering"].
+            Default is all control signals except time.
+        f_subsample: Frequency of subsampling observations. Use this to decrease
+             the complexity of the verbalization. ([1]/int).
 
     Returns:
         A string describing the scenario configuration, road layout, and simulation state.
@@ -96,9 +110,9 @@ def road_layout(scenario_map: ip.Map, **kwargs) -> str:
         scenario_map: The road layout of the scenario.
 
     Keyword Args:
-        lanes: Whether to add lane descriptions ([True]/False).
-        intersections: Whether to add intersection descriptions ([True]/False).
-        intersection_links: Whether to add intersection lane links (True/[False]).
+        add_lanes: Whether to add lane descriptions ([True]/False).
+        add_intersections: Whether to add intersection descriptions ([True]/False).
+        add_intersection_links: Whether to add intersection lane links (True/[False]).
         resolution: The resolution of the road midline (default=0.01).
         add_metadata: Whether to add metadata before the road layout description ([False]/True).
 
@@ -140,7 +154,7 @@ def road_layout(scenario_map: ip.Map, **kwargs) -> str:
                        if lane.type == ip.LaneTypes.DRIVING]
 
         # Describe lanes
-        if kwargs.get("lanes", True):
+        if kwargs.get("add_lanes", True):
             if left_lanes:
                 ret +=  "  Left lanes:\n"
                 for lane in left_lanes:
@@ -153,11 +167,11 @@ def road_layout(scenario_map: ip.Map, **kwargs) -> str:
 
 
     # Describe intersections
-    if kwargs.get("intersections", True):
+    if kwargs.get("add_intersections", True):
         for jid, junction in scenario_map.junctions.items():
             ret += f"Intersection {jid} connections:\n"
             for connection in junction.connections:
-                if kwargs.get("intersection_links", False):
+                if kwargs.get("add_intersection_links", False):
                     for lane_link in connection.lane_links:
                         ret += f"  {connection.incoming_road.id}.{lane_link.from_id}"
                         ret += f"->{connection.connecting_road.id}.{lane_link.to_id}\n"
@@ -169,7 +183,9 @@ def road_layout(scenario_map: ip.Map, **kwargs) -> str:
     return ret
 
 
-def agents(observations: Dict[int, Tuple[ip.StateTrajectory, ip.AgentState]], **kwargs) -> str:
+def agents(observations:
+           Dict[int, Tuple[ip.StateTrajectory, ip.AgentState, List[ActionSegment]]],
+           **kwargs) -> str:
     """ Verbalize a frame of the simulation state.
 
     Args:
@@ -187,45 +203,55 @@ def agents(observations: Dict[int, Tuple[ip.StateTrajectory, ip.AgentState]], **
     Returns:
         A string describing the frame of the simulation state.
     """
-    n_agents = len([ss for _, ss in observations.values()])
-    ret = f"""The scenario has {n_agents} agents. Agent 0 is the autonomous vehicle (ego vehicle).
+    def verbalize_control_signal(signal_, trajectory_, segmentations_):
+        if signal_ == "time":
+            return f"  Time: {util.ndarray2str(trajectory_.times, rounding)}\n"
+        elif signal_ == "timesteps":
+            timesteps = np.array([s.time for s in trajectory_.states])
+            return f"  Timesteps: {util.ndarray2str(timesteps)}\n"
+        elif signal_ == "position":
+            return f"  Position: {util.ndarray2str(trajectory_.path, rounding)}\n"
+        elif signal_ == "speed":
+            return f"  Speed: {util.ndarray2str(trajectory_.velocity, rounding)}\n"
+        elif signal_ == "acceleration":
+            return f"  Acceleration: {util.ndarray2str(trajectory_.acceleration, rounding)}\n"
+        elif signal_ == "heading":
+            return f"  Heading: {util.ndarray2str(trajectory_.heading, rounding)}\n"
+        elif signal_ == "steering":
+            return f"  Steering: {util.ndarray2str(trajectory_.angular_velocity, rounding)}\n"
+        elif signal_ == "segmentations":
+            segments_str = [f"{sg.times[0]}-{sg.times[-1]}: {sg.actions}" for sg in segmentations_]
+            segments_str = ", ".join(segments_str)
+            return f"  Action segments: {segments_str}\n"
+        elif signal_ == "maneuver":
+            mans = [s.maneuver for s in trajectory_.states]
+            return f"  Maneuver: {mans}\n"
+        elif signal_ == "macro":
+            macros = [s.macro_action for s in trajectory_.states]
+            return f"  Macro action: {macros}\n"
 
-The ego vehicle observed the following control signals for each agent:
-
-"""
+    n_agents = len(observations)
+    ret = f"The scenario has {n_agents} agents. Agent 0 is the autonomous vehicle called the ego agent.\n"
+          f"The ego agent observed the following control signals for each agent:\n"
 
     f_subsample = kwargs.get("f_subsample", 1)
     rounding = kwargs.get("rounding", 2)
     control_signals = kwargs.get("control_signals",
                                  ["timesteps", "position", "speed", "acceleration", "heading"])
-    for agent_id, (trajectory, _) in observations.items():
-        ret += f"Agent {agent_id}:\n"
+    for agent_id, (trajectory, _, segmentations) in observations.items():
+        ret += f"Agent {agent_id}:\n" if agent_id != 0 else "Ego vehicle:\n"
 
         if f_subsample > 1:
             trajectory = util.subsample_trajectory(trajectory, f_subsample)
 
         for signal in control_signals:
-            if signal == "time":
-                ret += f"  Time: {util.ndarray2str(trajectory.times, rounding)}\n"
-            elif signal == "timesteps":
-                timesteps = np.array([s.time for s in trajectory.states])
-                ret += f"  Timesteps: {util.ndarray2str(timesteps)}\n"
-            elif signal == "position":
-                ret += f"  Position: {util.ndarray2str(trajectory.path, rounding)}\n"
-            elif signal == "speed":
-                ret += f"  Speed: {util.ndarray2str(trajectory.velocity, rounding)}\n"
-            elif signal == "acceleration":
-                ret += f"  Acceleration: {util.ndarray2str(trajectory.acceleration, rounding)}\n"
-            elif signal == "heading":
-                ret += f"  Heading: {util.ndarray2str(trajectory.heading, rounding)}\n"
-            elif signal == "steering":
-                ret += f"  Steering: {util.ndarray2str(trajectory.angular_velocity, rounding)}\n"
+            ret += verbalize_control_signal(signal, trajectory, segmentations)
         ret += "\n"
 
     return ret[:-1]  # Remove the last newline
 
 
-def query(query_obj: xavi.Query, **kwargs) -> str:
+def query(query_obj: Query, **kwargs) -> str:
     """ Verbalize a query for prompting.
 
     Args:
@@ -233,8 +259,8 @@ def query(query_obj: xavi.Query, **kwargs) -> str:
 
     Keyword Args:
         ego_ref: To refer to the ego vehicle as "ego vehicle" or "agent 0" ([True]/False).
-        include_t_query: Whether to include the time of the query (True/[False]).
-        include_factual: Whether to include factual action if present ([True]/False).
+        add_t_query: Whether to include the time of the query (True/[False]).
+        add_factual: Whether to include factual action if present ([True]/False).
 
     Returns:
         A string describing the  user query.
@@ -252,7 +278,7 @@ def query(query_obj: xavi.Query, **kwargs) -> str:
     action = " ".join(words).lower()
 
     ret = ""
-    if query_obj.type in [xavi.QueryType.WHY, xavi.QueryType.WHY_NOT]:
+    if query_obj.type in [QueryType.WHY, QueryType.WHY_NOT]:
         if query_obj.tense == "past":
             ret += f"Why did {subject} {'not ' if query_obj.negative else ''}{action}"
         elif query_obj.tense == "present":
@@ -261,7 +287,7 @@ def query(query_obj: xavi.Query, **kwargs) -> str:
         else:
             ret += f"Why will {subject} {'not ' if query_obj.negative else ''}{action}"
 
-    elif query_obj.type == xavi.QueryType.WHAT_IF:  # What if question
+    elif query_obj.type == QueryType.WHAT_IF:  # What if question
         if query_obj.tense == "past":
             action = util.to_past(words, participle=True)
             ret += f"What if {subject} had {'not ' if query_obj.negative else ''}{action}"

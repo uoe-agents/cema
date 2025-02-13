@@ -213,12 +213,12 @@ def explain(
     """
     for query in queries:
         if t > 0 and t == query.t_query:
+            causes = xavi_agent.explain_actions(query)
+
             if save_agent:
                 file_name = f"agent_t{t}_m{query.type}.pkl"
                 file_path = os.path.join(output_path, file_name)
                 pickle.dump(xavi_agent, open(file_path, "wb"))
-
-            causes = xavi_agent.explain_actions(query)
 
             if save_causes:
                 file_path = os.path.join(output_path, f"q_t{t}_m{query.type}.pkl")
