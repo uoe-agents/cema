@@ -60,7 +60,7 @@ def explain(
     plot: Annotated[bool, typer.Option(help="Whether to display plots of the simulation.")] = False,
     sim_only: Annotated[bool, typer.Option(help="If true then do not execute queries.")] = False,
     debug: Annotated[
-        bool, 
+        bool,
         typer.Option(help="Whether to display debugging plots.")
     ] = state["debug"],
     carla: Annotated[
@@ -208,7 +208,11 @@ def evaluate(
     sampling: Annotated[
         bool,
         typer.Option(help="Whether to run a sampling robustness evaluation.")
-    ] = False
+    ] = False,
+    drop_dead: Annotated[
+        bool,
+        typer.Option(help="Whether to drop goal not reached factor from teleological plots.")
+    ] = True
 ):
     """ Evaluate the robustness of the explanation generation with increasing sample sizes
     and distribution smoothing. Also plot explanation reults."""
@@ -250,7 +254,7 @@ def evaluate(
     else:
         final_causes = causes[0]
         efficient_causes = causes[1]
-    plot_explanation(final_causes, efficient_causes[0:2], query_str, plot_path_query)
+    plot_explanation(final_causes, efficient_causes[0:2], query_str, plot_path_query, drop_dead=drop_dead)
 
     # Run explanation generation with increasing uniformity
     if sampling:

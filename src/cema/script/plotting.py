@@ -23,18 +23,22 @@ def plot_explanation(
         coefs: Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]],
         query_string: str,
         save_path: str,
-        max_n_causes: int = 14) -> None:
+        max_n_causes: int = 14,
+        drop_dead: bool = True) -> None:
     """ Plot causal attributions and save each on individual files.
 
     Args:
         d_rewards: Reward differences for final causes.
         coefs: Feature coefficient importances for efficient causes.
-        query: The query object.
-        query_string: The query string to identify the current query.
+        query_string: The query string for saving plots to file.
         save_path: Optional save path for the image.
+        max_n_causes: The maximum number of causes to display on the plot.
+        drop_dead: Whether to drop goal not reached state from the rewards.
     """
     sns.set_style("whitegrid")
-    to_drop = ["term", "dead"]
+    to_drop = ["term"]
+    if drop_dead:
+        to_drop.append("dead")
     if d_rewards_tuple is not None:
         for time, (d_causes, d_rewards) in zip(["past", "future"], d_rewards_tuple):
             fig, ax = plt.subplots()
@@ -95,7 +99,7 @@ def process_evaluation_dictionary(
         max_n_causes: int = 14) -> Tuple[pd.DataFrame, pd.DataFrame]:
     def renamer(x: str) -> str:
         return x.replace("xmacro", "xm").replace("nmacro", "nm")[:20]
-    
+
     teleological_df = []
     mechanistic_df = []
     logger.info("Processing evaluation results for plotting . . .")
@@ -134,14 +138,14 @@ def process_evaluation_dictionary(
                                                          var_name="Factor", value_name="Reward")
     teleological_df = teleological_df.dropna(axis=0, subset="Factor")
 
-    mechanistic_df = pd.DataFrame(mechanistic_df) 
+    mechanistic_df = pd.DataFrame(mechanistic_df)
     n_causes = mechanistic_df.shape[1] - 2
     mechanistic_df = mechanistic_df.melt(id_vars=["value", "time"], var_name="Feature", value_name="Causal Effect")
     # Limit the number of causes visible on the plot if necessary
     if n_causes > max_n_causes:
         sorted_features = (mechanistic_df.groupby(["time", "Feature"])
                            .mean("Causal Effect")
-                           .sort_values(by="Causal Effect", ascending=False, key=abs))  
+                           .sort_values(by="Causal Effect", ascending=False, key=abs))
         top_n_past = sorted_features.xs("past", drop_level=False).index[:max_n_causes]
         top_n_future = sorted_features.xs("future", drop_level=False).index[:max_n_causes]
         indexer = mechanistic_df.set_index(["time", "Feature"]).index
@@ -152,12 +156,12 @@ def process_evaluation_dictionary(
 
 
 def plot_sampling_results(
-        sampling_results: Dict[int, List[Any]], 
-        output_path: str, 
+        sampling_results: Dict[int, List[Any]],
+        output_path: str,
         query_str: str,
         max_n_causes: int = 14) -> None:
-    """ Plots the sampling size robustness results. 
-    
+    """ Plots the sampling size robustness results.
+
     Args:
         sampling_results: A dictionary of lists of sampling results.
         output_path: The path to save the plots.
@@ -176,7 +180,7 @@ def plot_sampling_results(
         if df.empty:
             continue
         hue_order = df.groupby("Factor").mean("Reward").sort_values("Reward", ascending=False).index
-        g = sns.relplot(data=df, x="Sample Size", y="Reward", hue="Factor", style="Factor", 
+        g = sns.relplot(data=df, x="Sample Size", y="Reward", hue="Factor", style="Factor",
                         kind="line", markers=True, hue_order=hue_order)
         time_str = "Past" if time == "past" else "Present-future"
         g.figure.suptitle(f"{time_str} teleological causes")
@@ -191,7 +195,7 @@ def plot_sampling_results(
         if df.empty:
             continue
         hue_order = df.groupby("Feature").mean("Causal Effect").sort_values("Causal Effect", ascending=False).index
-        g = sns.relplot(data=df, x="Sample Size", y="Causal Effect", hue="Feature", 
+        g = sns.relplot(data=df, x="Sample Size", y="Causal Effect", hue="Feature",
                         style="Feature", kind="line", markers=True, hue_order=hue_order)
         time_str = "Past" if time == "past" else "Present-future"
         g.figure.suptitle(f"{time_str} mechanistic causes")
@@ -205,8 +209,8 @@ def plot_sampling_results(
 
 
 def plot_distribution_results(
-        distribution_results: Dict[float, List[Any]], 
-        output_path: str, 
+        distribution_results: Dict[float, List[Any]],
+        output_path: str,
         query_str: str,
         max_n_causes: int = 14) -> None:
     """ Plots the distribution smoothing robustness results.
@@ -222,14 +226,14 @@ def plot_distribution_results(
     teleological_df, mechanistic_df = process_evaluation_dictionary(distribution_results, max_n_causes=max_n_causes)
     teleological_df.rename({"value": "Smoothing Alpha"}, axis=1, inplace=True)
     mechanistic_df.rename({"value": "Smoothing Alpha"}, axis=1, inplace=True)
-    
+
     logger.info("Plotting distribution robustness results . . .")
     for time in ["past", "future"]:
         df = teleological_df[teleological_df["time"] == time]
         if df.empty:
             continue
         hue_order = df.groupby("Factor").mean("Reward").sort_values("Reward", ascending=False).index
-        g = sns.relplot(data=df, x="Smoothing Alpha", y="Reward", hue="Factor", style="Factor", 
+        g = sns.relplot(data=df, x="Smoothing Alpha", y="Reward", hue="Factor", style="Factor",
                         kind="line", markers=True, hue_order=hue_order)
         time_str = "Past" if time == "past" else "Present-future"
         g.figure.suptitle(f"{time_str} teleological causes")
@@ -245,7 +249,7 @@ def plot_distribution_results(
         if df.empty:
             continue
         hue_order = df.groupby("Feature").mean("Causal Effect").sort_values("Causal Effect", ascending=False).index
-        g = sns.relplot(data=df, x="Smoothing Alpha", y="Causal Effect", hue="Feature", 
+        g = sns.relplot(data=df, x="Smoothing Alpha", y="Causal Effect", hue="Feature",
                         style="Feature", kind="line", markers=True, hue_order=hue_order)
         time_str = "Past" if time == "past" else "Present-future"
         g.figure.suptitle(f"{time_str} mechanistic causes")

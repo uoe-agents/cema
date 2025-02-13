@@ -445,7 +445,7 @@ class XAVIAgent(ip.MCTSAgent):
             observation: the observation of the environment for which to generate the data structure
         """
         goals = self.get_goals(observation)
-        return {aid: ip.GoalsProbabilities(goals) 
+        return {aid: ip.GoalsProbabilities(goals)
                 for aid in previous_frame.keys() if aid != self.agent_id}
 
     def _generate_rollouts(self,
@@ -454,7 +454,7 @@ class XAVIAgent(ip.MCTSAgent):
                            goal_probabilities: Dict[int, ip.GoalsProbabilities],
                            mcts: ip.MCTS,
                            time_reference: str):
-        """ Runs MCTS to generate a new sequence of macro actions to 
+        """ Runs MCTS to generate a new sequence of macro actions to
         execute using previous observations.
 
         Args:
@@ -542,7 +542,6 @@ class XAVIAgent(ip.MCTSAgent):
 
          Args:
              mcts_results: MCTS results class to convert to a dataset.
-             goal_probabilities: Predictions for non-ego vehicles.
              observations: The observations that preceded the planning step.
              reference_t: The time of the start of the counterfactual simulation.
          """
