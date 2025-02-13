@@ -40,7 +40,6 @@ app = typer.Typer(callback=callback)
 
 @app.command()
 def explain(
-    ctx: typer.Context,
     scenario: Annotated[
         int,
         typer.Argument(help="The ID of the scenario to execute.", metavar="S", min=0)
@@ -77,8 +76,6 @@ def explain(
         os.mkdir(output_path)
     setup_cema_logging(log_dir=os.path.join(output_path, "logs"), log_name="run",
                        log_level=logging.DEBUG if state["debug"] else logging.INFO)
-
-    logger.info(ctx.args)
 
     config = load_config(config_path, scenario)
     queries = parse_query(query_path, scenario)
