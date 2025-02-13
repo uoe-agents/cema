@@ -3,8 +3,8 @@
     "type": "whynot",
     "agent_id": 0,
     "action": "GoStraightJunction",
-    "t_query": 100,
+    "t_query": 140,
     "tense": "past",
-    "factual": "ChangeLaneRight"
+    "factual": "TurnRight"
   }
 ]

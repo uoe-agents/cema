@@ -1,10 +1,13 @@
-import numpy as np
-import pandas as pd
+""" The XAVI agent is an extension of the MCTSAgent that generates
+counterfactual explanations for user queries in an autonomous driving environment. """
 import logging
 import time
-import igp2 as ip
-from typing import Dict, List, Tuple, Optional, Any
 from collections import Counter
+from typing import Dict, List, Tuple, Optional
+
+import numpy as np
+import pandas as pd
+import igp2 as ip
 
 from sklearn.linear_model import LogisticRegression
 
@@ -77,7 +80,8 @@ class XAVIAgent(ip.MCTSAgent):
         for time_reference in ["tau", "t_action"]:
             self._cf_mcts_dict[time_reference] = ip.MCTS(**mcts_params)
             if cf_reward_factors is not None and time_reference in cf_reward_factors:
-                self._cf_mcts_dict[time_reference].reward = ip.Reward(factors=cf_reward_factors[time_reference])
+                self._cf_mcts_dict[time_reference].reward = \
+                    ip.Reward(factors=cf_reward_factors[time_reference])
         self._cf_sampling_distribution = {"tau": None, "t_action": None}
 
         self._features = Features(self._scenario_map)
@@ -105,7 +109,8 @@ class XAVIAgent(ip.MCTSAgent):
                 continue
             for agent_id, agent in last_node.run_result.agents.items():
                 if isinstance(agent, ip.TrajectoryAgent):
-                    plan = self.goal_probabilities[agent_id].trajectory_to_plan(*rollout.samples[agent_id])
+                    plan = self.goal_probabilities[agent_id].trajectory_to_plan(
+                        *rollout.samples[agent_id])
                     fill_missing_actions(agent.trajectory_cl, plan)
                 agent.trajectory_cl.calculate_path_and_velocity()
 
@@ -113,12 +118,14 @@ class XAVIAgent(ip.MCTSAgent):
         self._mcts_results_buffer.append((current_t, self.mcts.results))
 
     def explain_actions(self, user_query: Query = None):
-        """ Explain the behaviour of the ego considering the last tau time-steps and the future predicted actions.
+        """ Explain the behaviour of the ego considering the
+        last tau time-steps and the future predicted actions.
 
         Args:
             user_query: The parsed query of the user.
 
-        Returns: A natural language explanation of the query, and the causes that generated the sentence.
+        Returns: A natural language explanation of the
+                 query, and the causes that generated the sentence.
         """
         t_start = time.time()
 
@@ -184,10 +191,11 @@ class XAVIAgent(ip.MCTSAgent):
             def get_values(items, comp):
                 r = [reward.reward_components[comp] for item in items for reward in item.rewards
                      if reward.reward_components[comp] is not None]
-                p = len(r) / len([reward.reward_components[comp] for item in items for reward in item.rewards]) if r else 0.0
+                p = len(r) / len([reward.reward_components[comp]
+                                  for item in items for reward in item.rewards]) if r else 0.0
                 r = np.sum(r) / len(r) if r else 0.0
                 return r, p
-            
+
             diffs = {}
             for component in self._reward.reward_components:
                 r_qp, p_qp = get_values(ref_items, component)
@@ -202,7 +210,7 @@ class XAVIAgent(ip.MCTSAgent):
 
         if tau_dataset is None:
             tau_causes, tau_rewards = None, None
-        else:   
+        else:
             query_present, query_not_present = split_by_query(tau_dataset)
             tau_rewards = []
             for item in tau_dataset:
@@ -224,12 +232,17 @@ class XAVIAgent(ip.MCTSAgent):
                     t_action_rewards.append(new_row)
             t_action_causes = get_causes(query_present, query_not_present)
 
-        return (tau_causes, pd.DataFrame(tau_rewards)), (t_action_causes, pd.DataFrame(t_action_rewards))
+        return (tau_causes, pd.DataFrame(tau_rewards)), \
+               (t_action_causes, pd.DataFrame(t_action_rewards))
 
     def _mechanistic_causes(self,
                             tau_dataset: List[Item] = None,
                             t_action_dataset: List[Item] = None) \
-            -> Tuple[Optional[pd.DataFrame], pd.DataFrame, Tuple[Optional[LogisticRegression], LogisticRegression]]:
+            -> Tuple[
+                Optional[pd.DataFrame],
+                pd.DataFrame,
+                Tuple[Optional[LogisticRegression], LogisticRegression]
+            ]:
         """ Generate efficient causes for the queried action.
 
         Args:
@@ -237,7 +250,8 @@ class XAVIAgent(ip.MCTSAgent):
             t_action_dataset: Counterfactual items starting from timestep t_action.
 
         Returns:
-            Dataframes for past and future causes with causal effect size, and optionally the linear regression models
+            Dataframes for past and future causes with
+            causal effect size, and optionally the linear regression models
         """
 
         def process_dataset(dataset: List[Item], t_slice: Tuple[Optional[int], Optional[int]]):
@@ -253,40 +267,41 @@ class XAVIAgent(ip.MCTSAgent):
             return xs_, ys_
 
         def get_ranking(xs_, ys_):
-            X_, y_, model_, coefs_ = None, None, None, None
+            x_, y_, model_, coefs_ = None, None, None, None
             if xs_ and ys_:
-                X_, y_ = self._features.binarise(xs_, ys_)
-                model_ = LogisticRegression().fit(X_, y_)
-                coefs_ = get_coefficient_significance(X_, y_, model_)
-            return X_, y_, model_, coefs_
+                x_, y_ = self._features.binarise(xs_, ys_)
+                model_ = LogisticRegression().fit(x_, y_)
+                coefs_ = get_coefficient_significance(x_, y_, model_)
+            return x_, y_, model_, coefs_
 
         if tau_dataset is None:
-            X_past, y_past, model_past, coefs_past = None, None, None, None
+            x_past, y_past, model_past, coefs_past = None, None, None, None
         else:
             xs_past, ys_past = process_dataset(tau_dataset, (self.query.tau, self.query.t_action))
-            X_past, y_past, model_past, coefs_past = get_ranking(xs_past, ys_past)
+            x_past, y_past, model_past, coefs_past = get_ranking(xs_past, ys_past)
 
         if t_action_dataset is None:
-            X_future, y_future, model_future, coefs_future = None, None, None, None
+            x_future, y_future, model_future, coefs_future = None, None, None, None
         else:
             xs_future, ys_future = process_dataset(t_action_dataset, (self.query.t_action, None))
-            X_future, y_future, model_future, coefs_future = get_ranking(xs_future, ys_future)
+            x_future, y_future, model_future, coefs_future = get_ranking(xs_future, ys_future)
 
-        return coefs_past, coefs_future, (X_past, y_past, model_past), (X_future, y_future, model_future)
+        return coefs_past, coefs_future, \
+            (x_past, y_past, model_past), (x_future, y_future, model_future)
 
     # ---------Explanation generation functions---------------
 
     def _explain_what(self) -> List[ActionGroup]:
-        """ Generate an explanation to a what query. Involves looking up the trajectory segment at T and
-        returning a feature set of it. We assume for the future that non-egos follow their MAP-prediction for
-        goal and trajectory.
+        """ Generate an explanation to a what query. Involves looking up the trajectory segment
+        at T and returning a feature set of it. We assume for the future that non-egos follow
+        their MAP-prediction for goal and trajectory.
 
         Returns:
             An action group of the executed action at the user given time point.
         """
         logger.info("Generating a what explanation.")
         if self.query.agent_id is None:
-            logger.warning(f"No Agent ID given for what-query. Falling back to ego ID.")
+            logger.warning("No Agent ID given for what-query. Falling back to ego ID.")
             self.query.agent_id = self.agent_id
 
         trajectory = self.total_observations[self.query.agent_id][0]
@@ -297,8 +312,9 @@ class XAVIAgent(ip.MCTSAgent):
 
         start_t = self.query.t_action
         if start_t >= len(trajectory):
-            logger.warning(f"Total trajectory for Agent {self.query.agent_id} is not "
-                           f"long enough for query! Falling back to final timestep.")
+            logger.warning("Total trajectory for Agent %s is not long"
+                           "enough for query! Falling back to final timestep.",
+                           self.query.agent_id)
             start_t = len(trajectory) - 1
         return [seg for seg in grouped_segments if seg.start <= start_t <= seg.end]
 
@@ -316,7 +332,7 @@ class XAVIAgent(ip.MCTSAgent):
             # self._get_counterfactuals(["tau"])
             tau = list(self.cf_datasets["tau"].values())
 
-        assert self._cf_dataset_dict["t_action"] is not None, f"Missing counterfactual dataset."
+        assert self._cf_dataset_dict["t_action"] is not None, "Missing counterfactual dataset."
         t_action = list(self.cf_datasets["t_action"].values())
 
         final_causes = self._teleological_causes(tau, t_action)
@@ -324,10 +340,11 @@ class XAVIAgent(ip.MCTSAgent):
 
         return final_causes, efficient_causes
 
-    def _explain_whatif(self) -> Tuple[ActionGroup, pd.DataFrame, Tuple[pd.DataFrame, pd.DataFrame]]:
+    def _explain_whatif(self) \
+        -> Tuple[ActionGroup, pd.DataFrame, Tuple[pd.DataFrame, pd.DataFrame]]:
         """ Generate an explanation to a whatif query.
-        Labels trajectories in query and finding optimal one among them, then compares the optimal one with
-        factual optimal one regarding their reward components to extract final causes.
+        Labels trajectories in query and finding optimal one among them, then compares the optimal
+        one with factual optimal one regarding their reward components to extract final causes.
 
         Returns:
             An action group of the executed action at the user given time point.
@@ -342,7 +359,7 @@ class XAVIAgent(ip.MCTSAgent):
         cf_counts = Counter([(it.trace, it.last_node) for it in cf_items])
         cf_optimal_trace, cf_optimal_rollout =  max(cf_counts, key=cf_counts.get)
         f_counts = Counter([(it.trace, it.last_node) for it in f_items])
-        f_optimal_trace, f_optimal_rollout = max(f_counts, key=f_counts.get)
+        f_optimal_trace, _ = max(f_counts, key=f_counts.get)
 
         # Retrieve ego's action plan in the counterfactual case
         cf_ego_agent = cf_optimal_rollout.run_result.agents[self.agent_id]
@@ -374,7 +391,8 @@ class XAVIAgent(ip.MCTSAgent):
         """ Get observations from tau time steps before, and call MCTS from that joint state.
 
         Args:
-            times: The time reference points at which timestep to run MCTS from. Either tau or t_action for now.
+            times: The time reference points at which timestep to run MCTS from.
+                   Either tau or t_action for now.
         """
         logger.info("Generating counterfactual rollouts.")
 
@@ -392,7 +410,7 @@ class XAVIAgent(ip.MCTSAgent):
         truncated_observations, previous_frame = truncate_observations(self.observations, t)
         self._cf_observations_dict[time_reference] = truncated_observations
 
-        logger.debug(f"Generating counterfactuals at {time_reference} ({t})")
+        logger.debug("Generating counterfactuals at %s (%s)", time_reference, t)
         if previous_frame:
             mcts = self._cf_mcts_dict[time_reference]
             goal_probabilities = self._cf_goal_probabilities_dict[time_reference]
@@ -427,7 +445,8 @@ class XAVIAgent(ip.MCTSAgent):
             observation: the observation of the environment for which to generate the data structure
         """
         goals = self.get_goals(observation)
-        return {aid: ip.GoalsProbabilities(goals) for aid in previous_frame.keys() if aid != self.agent_id}
+        return {aid: ip.GoalsProbabilities(goals) 
+                for aid in previous_frame.keys() if aid != self.agent_id}
 
     def _generate_rollouts(self,
                            frame: Dict[int, ip.AgentState],
@@ -435,7 +454,8 @@ class XAVIAgent(ip.MCTSAgent):
                            goal_probabilities: Dict[int, ip.GoalsProbabilities],
                            mcts: ip.MCTS,
                            time_reference: str):
-        """ Runs MCTS to generate a new sequence of macro actions to execute using previous observations.
+        """ Runs MCTS to generate a new sequence of macro actions to 
+        execute using previous observations.
 
         Args:
             frame: Observation of the env tau time steps back.
@@ -474,7 +494,8 @@ class XAVIAgent(ip.MCTSAgent):
             gps.add_smoothing(self._alpha, uniform_goals=False)
 
             logger.info("")
-            logger.info("Goals probabilities for agent %s after (possible) overriding and smoothing.", agent_id)
+            logger.info("Goals probabilities for agent %s after (possible)"
+                        "overriding and smoothing.", agent_id)
             goal_probabilities[agent_id].log(logger)
             logger.info("")
 
@@ -490,7 +511,8 @@ class XAVIAgent(ip.MCTSAgent):
         ip.MacroActionFactory.macro_action_types["Exit"] = Exit_
         Exit_.ALWAYS_STOPS = self._always_check_stop
         for i, deterministic_trajectories in enumerate(all_deterministic_trajectories):
-            logger.info("Running deterministic simulations %d/%d", i + 1, len(all_deterministic_trajectories))
+            logger.info("Running deterministic simulations %d/%d",
+                        i + 1, len(all_deterministic_trajectories))
 
             mcts.search(
                 agent_id=self.agent_id,
@@ -498,11 +520,13 @@ class XAVIAgent(ip.MCTSAgent):
                 frame=frame,
                 meta=agents_metadata,
                 predictions=deterministic_trajectories)
-            
+
             # Record rollout data for sampling
-            goal_trajectories = {aid: (gp.goals_and_types[0], gp.all_trajectories[gp.goals_and_types[0]][0]) 
+            goal_trajectories = {aid: (gp.goals_and_types[0],
+                                       gp.all_trajectories[gp.goals_and_types[0]][0])
                                 for aid, gp in deterministic_trajectories.items()}
-            probabilities, data, reward_data = get_visit_probabilities(mcts.results, p_optimal=self._p_optimal)
+            probabilities, data, reward_data = \
+                get_visit_probabilities(mcts.results, p_optimal=self._p_optimal)
             distribution.add_distribution(goal_trajectories, probabilities, data, reward_data)
         ip.MacroActionFactory.macro_action_types["Exit"] = ip.Exit
 
@@ -537,8 +561,8 @@ class XAVIAgent(ip.MCTSAgent):
 
                 # Retrieve maneuvers and macro actions for non-ego vehicles
                 if isinstance(agent, ip.TrafficAgent):
-                    # plan = goal_probabilities[agent_id].trajectory_to_plan(*goal_trajectories[agent_id])
-                    plan = sampling_distribution.agent_distributions[agent_id].trajectory_to_plan(*goal_trajectories[agent_id])
+                    plan = sampling_distribution.agent_distributions[agent_id].trajectory_to_plan(
+                        *goal_trajectories[agent_id])
                     fill_missing_actions(sim_trajectory, plan)
 
                 if agent_id == self.query.agent_id:
@@ -548,13 +572,16 @@ class XAVIAgent(ip.MCTSAgent):
                 trajectories[agent_id] = trajectory
 
             if len(trajectory_queried_agent.states) == 0:
-                logger.warning("No trajectory given for agent %s in counterfactual.", self.query.agent_id)
+                logger.warning("No trajectory given for agent %s in counterfactual.",
+                               self.query.agent_id)
                 continue
 
-            # Slice the trajectory according to the tense in case of multiply actions in query exist in a trajectory
+            # Slice the trajectory according to the tense in case of
+            # multiply actions in query exist in a trajectory
             sliced_trajectory = self.query.slice_segment_trajectory(
                 trajectory_queried_agent, self._current_t, present_ref_t=reference_t)
-            query_factual = None  # self.query.factual if not self.query.all_factual and self.query.exclusive else None
+            # self.query.factual if not self.query.all_factual and self.query.exclusive else None
+            query_factual = None
             y = self._matching.action_matching(
                 self.query.action, sliced_trajectory, query_factual)
             if self.query.negative:
@@ -567,8 +594,8 @@ class XAVIAgent(ip.MCTSAgent):
         return dataset
 
     def _get_total_trajectories(self) -> Tuple[Observations, List]:
-        """ Return the optimal predicted trajectories for all agents. This would be the optimal MCTS plan for
-        the ego and the MAP predictions for non-ego agents.
+        """ Return the optimal predicted trajectories for all agents.
+        This would be the optimal MCTS plan for the ego and the MAP predictions for non-ego agents.
 
          Returns:
              Optimal predicted trajectories and their initial state as Observations.
@@ -630,7 +657,8 @@ class XAVIAgent(ip.MCTSAgent):
 
     @property
     def total_observations(self) -> Observations:
-        """ Returns the factual observations extended with the most optimal predicted trajectory for all agents. """
+        """ Returns the factual observations extended with the
+        most optimal predicted trajectory for all agents. """
         return self._total_trajectories
 
     @property
