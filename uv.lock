@@ -1100,7 +1100,7 @@ wheels = [
 [[package]]
 name = "igp2"
 version = "0.3.1"
-source = { git = "https://github.com/uoe-agents/IGP2#f8ea836c36bcbc5b948bfc5b0df4f9913f0da649" }
+source = { git = "https://github.com/uoe-agents/IGP2#aca037ad54a2f248c81552c91b0aebb2337fa2c7" }
 dependencies = [
     { name = "casadi" },
     { name = "imageio" },
