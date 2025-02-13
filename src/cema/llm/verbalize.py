@@ -111,10 +111,11 @@ def road_layout(scenario_map: ip.Map, **kwargs) -> str:
     if add_metadata:
         ret += ROAD_LAYOUT_PRETEXT
         lane_links = kwargs.get("intersection_links", False)
+        ret += "  Connections are written as "
         if not lane_links:
-            ret += "  Connections are written as 'incoming road id->connecting road id'."
+            ret += "'incoming road id->connecting road id'."
         else:
-            ret += "  Connections are written as 'incoming road id:lane id->connecting road id:lane id'."
+            ret += "'incoming road id:lane id->connecting road id:lane id'."
         ret += "\n\n"
 
 

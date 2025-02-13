@@ -1,6 +1,6 @@
 {
     "scenario": {
-        "map_path": "scenarios\\maps\\scenario1.xodr",
+        "map_path": "scenarios/maps/scenario1.xodr",
         "max_speed": 10.0,
         "fps": 20,
         "seed": 42,
@@ -57,7 +57,7 @@
                 "jerk": -0.01,
                 "angular_velocity": -0.03,
                 "curvature": -0.01
-              } 
+              }
             },
             "explainer": {
               "cf_n_simulations": 30,
@@ -66,7 +66,7 @@
               "tau_limits": [2.0, 5.0],
               "time_limits": [5.0, 5.0],
               "alpha": 0.5,
-              "p_optimal": 0.75,
+              "p_optimal": 0.33,
               "cf_reward_factors": {
                 "tau": {
                   "time": 1.0,

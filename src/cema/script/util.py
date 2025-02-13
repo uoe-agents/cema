@@ -224,7 +224,7 @@ def explain(
                 file_path = os.path.join(output_path, f"q_t{t}_m{query.type}.pkl")
                 pickle.dump(causes, open(file_path, "wb"))
                 file_path = os.path.join(output_path, f"sd_t{t}_m{query.type}.pkl")
-                pickle.dump(xavi_agent.cf_sampling_distributions, open(file_path, "wb"))
+                pickle.dump(xavi_agent.sampling_distributions, open(file_path, "wb"))
 
 
 def run_simple_simulation(
@@ -239,7 +239,9 @@ def run_simple_simulation(
     ) -> bool:
     """ Run a simple simulation with the given configuration. """
     for t in range(config["scenario"]["max_steps"]):
-        simulation.step()
+        alive = simulation.step()
+        if not alive:
+            break
         if t % 20 == 0 and plot:
             xavi.plot_simulation(simulation, debug=False)
             plt.show()

@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "cema"
 version = "0.1.0"
@@ -36,10 +40,6 @@ llm = [
   "vllm>=0.2.5",
   "openai>=1.61.1",
 ]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
 
 [[tool.uv.index]]
 name = "pytorch"

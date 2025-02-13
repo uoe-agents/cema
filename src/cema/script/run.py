@@ -16,11 +16,6 @@ from tqdm.contrib.logging import logging_redirect_tqdm
 from igp2.core.config import Configuration
 import gofi
 from cema import setup_cema_logging
-try:
-    from cema.llm import verbalize
-    from cema.llm import ChatHandlerFactory, ChatHandlerConfig
-except ImportError as e:
-    print(e)
 from cema.xavi import QueryType, plot_simulation
 from cema.oxavi import OFollowLaneCL
 from cema.script.util import generate_random_frame, load_config, parse_query, \
@@ -32,7 +27,15 @@ from cema.script.plotting import plot_distribution_results, plot_sampling_result
 logger = logging.getLogger(__name__)
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
-app = typer.Typer()
+state = { "debug": False}
+
+
+def callback(debug: Annotated[bool, typer.Option(help="Whether to run in debug mode.")] = False):
+    """ Set debug level and run the application. """
+    state["debug"] = debug
+
+
+app = typer.Typer(callback=callback)
 
 
 @app.command()
@@ -56,7 +59,10 @@ def explain(
     ] = False,
     plot: Annotated[bool, typer.Option(help="Whether to display plots of the simulation.")] = False,
     sim_only: Annotated[bool, typer.Option(help="If true then do not execute queries.")] = False,
-    debug: Annotated[bool, typer.Option(help="Whether to display debugging plots.")] = False,
+    debug: Annotated[
+        bool, 
+        typer.Option(help="Whether to display debugging plots.")
+    ] = state["debug"],
     carla: Annotated[
         bool,
         typer.Option(help="Whether to use CARLA as the simulator instead of the simple simulator.")
@@ -69,7 +75,8 @@ def explain(
     output_path = os.path.join("output", f"scenario_{scenario}")
     if not os.path.exists(output_path):
         os.mkdir(output_path)
-    setup_cema_logging(log_dir=os.path.join(output_path, "logs"), log_name="run")
+    setup_cema_logging(log_dir=os.path.join(output_path, "logs"), log_name="run",
+                       log_level=logging.DEBUG if state["debug"] else logging.INFO)
 
     logger.info(ctx.args)
 
@@ -135,6 +142,10 @@ def llm(
     ] = None
 ):
     """ Explain a scenario with the given ID and configuration using an LLM model. """
+
+    from cema.llm import verbalize
+    from cema.llm import ChatHandlerFactory, ChatHandlerConfig
+
     # Create folder structure
     os.makedirs("output", exist_ok=True)
     output_path = os.path.join("output", f"scenario_{scenario}")
@@ -145,7 +156,8 @@ def llm(
     os.makedirs(output_path, exist_ok=True)
 
     # Setup logging
-    setup_cema_logging(log_dir=log_path, log_name="llm")
+    setup_cema_logging(log_dir=log_path, log_name="llm",
+                       log_level=logging.DEBUG if state["debug"] else logging.INFO)
     logging.getLogger("cema.xavi.explainer").setLevel(logging.WARNING)
 
     # Load scenario and query and observations
@@ -213,7 +225,8 @@ def evaluate(
         os.makedirs(plot_path, exist_ok=True)
 
     # Setup logging
-    setup_cema_logging(log_dir=logger_path, log_name="evaluation")
+    setup_cema_logging(log_dir=logger_path, log_name="evaluation",
+                       log_level=logging.DEBUG if state["debug"] else logging.INFO)
     logging.getLogger("xavi.explainer").setLevel(logging.WARNING)
     logging.getLogger("oxavi.oexplainer").setLevel(logging.WARNING)
 
@@ -264,13 +277,6 @@ def evaluate(
         plot_sampling_results(sampling_results, plot_path_query, query_str)
 
     return 1
-
-
-@app.callback()
-def main(debug: Annotated[bool, typer.Option(help="Whether to run in debug mode.")] = False):
-    """ Set debug level and run the application. """
-    if debug:
-        logging.getLogger().setLevel(logging.DEBUG)
 
 
 def cli():
