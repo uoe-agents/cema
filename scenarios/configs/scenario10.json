@@ -1,6 +1,6 @@
 {
   "scenario": {
-    "map_path": "scenarios\\maps\\scenario10.xodr",
+    "map_path": "scenarios/maps/scenario10.xodr",
     "max_speed": 10.0,
     "fps": 20,
     "seed": 42,

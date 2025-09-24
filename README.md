@@ -2,30 +2,53 @@
 This is the code repository for our [paper](https://arxiv.org/abs/2302.10809) "Causal Social Explanations for Stochastic Sequential Multi-Agent Decision-Making" by Gyevnar et al [1] published at AAMAS 2024 in Auckland, New Zealand.
 The following document describes the installation process and usage of the code to reproduce our results.
 
-As part of the publication, we release the full _codebase_ for the reproduction of our experiments, as well as the _dataset_ of human-written intelligible explanations collected for evaluation.
-
-Note, the Python package for accessing our code is called 'xavi' due to legacy reasons.
-The package relies on the [IGP2](https://github.com/uoe-agents/IGP2) package to simulate road interactions in scenarios with an autonomous vehicle.
+This software relies on the [IGP2](https://github.com/uoe-agents/IGP2) package to simulate road interactions in scenarios with an autonomous vehicle.
 
 ## Please Cite
 If you use our code in your work then please cite our [paper](https://arxiv.org/abs/2302.10809):
 ```text
-@inproceedings{gyevnar2024cema,
- title={Causal Explanations for Sequential Decision-Making in Multi-Agent Systems}, 
- author={Balint Gyevnar and Cheng Wang and Christopher G. Lucas and Shay B. Cohen and Stefano V. Albrecht},
- booktitle={Autonomous Agents and Multi-Agent Systems (AAMAS)},
- year={2024}}
+@inproceedings{gyevnar2024causal,
+  author = {Gyevnar, Balint and Wang, Cheng and Lucas, Christopher G. and Cohen, Shay B. and Albrecht, Stefano V.},
+  title = {Causal Explanations for Sequential Decision-Making in Multi-Agent Systems},
+  year = {2024},
+  publisher = {International Foundation for Autonomous Agents and Multiagent Systems},
+  address = {Richland, SC},
+  booktitle = {Proceedings of the 23rd International Conference on Autonomous Agents and Multiagent Systems},
+  pages = {771-779},
+  numpages = {9},
+  location = {Auckland, New Zealand},
+  series = {AAMAS '24},
+}
 ```
 
 ## Getting Started
 
-### Installation
-To install all pre-requisite packages and our package, navigate to the desired folder for installation and run the following commands:
+### Recommended Installation
+
+The recommended way to install CEMA is using `uv`, which is a super-fast Python package manager which supports pip. You can download `uv` from [here](https://docs.astral.sh/uv/getting-started/installation/). Once downloaded, you can run the following commands to download and use CEMA:
 ```commandline
-git clone https://github.com/uoe-agents/cema.git
-cd xavi
-pip install -e .
+uv pip install git+https://github.com/uoe-agents/cema.git
+cd cema
+uv run cema
 ```
+
+If you wish to use the LLM-based functionallity of CEMA, you should run the following command:
+```commandline
+uv pip install "cema[llm] @ git+https://github.com/uoe-agents/cema.git"
+cd cema
+uv run cema
+```
+
+### Alternative Installation
+
+Alternatively, you can follow the standard pip installation method:
+```commandline
+pip install git+https://github.com/uoe-agents/cema.git
+cd cema
+python -m cema
+```
+
+## Reproducing results
 
 To reproduce results from the paper you can use the already existing scripts.
 Simply run the script ```python run.py``` to generate explanations by specifying various commandline arguments which you can get help with using the ```-h``` commandline argument.
@@ -38,7 +61,6 @@ python run.py 1
 If you wish to plot the simulation, you can do so by specifying the ```--plot``` commandline argument (currently we only use matplotlib so plotting is rather slow).
 Plots of the explanations are generated automatically after executing each query. 
 
-### Reproducing results
 To reproduce all our results you can just run the ```bash eval_all.sh``` script to generate all results and outputs. 
 
 To generate results for a particular scenario and query, first run the scenario and the corresponding queries (currently defined in ```final_queries.json```) and save the results using the following command:
@@ -50,6 +72,8 @@ After saving the results, you can plot the causal attributions and generate the 
 ```commandline
 python eval.py $scenario_id$ $query_index$
 ```
+
+## Configuration
 
 ### Map file
 The road layout in each scenario is defined using the ASAM OpenDrive standard v1.6.
@@ -150,4 +174,4 @@ scenarios/queries/query_scenarioN.json
 ```
 
 ## References
-[1] B. Gyevnar, C. Wang, C.G. Lucas, S.B. Cohen, S.V. Albrecht; Causal Social Explanations for Stochastic Sequential Multi-Agent Decision-Making, arXiv, 2023.
+[1] B. Gyevnar, C. Wang, C.G. Lucas, S.B. Cohen, S.V. Albrecht; Causal Explanations for Sequential Decision-Making in Multi-Agent System, _Proceedings of the 23rd International Conference on Autonomous Agents and Multiagent Systems_ (AAMAS '24), Auckland, New Zealand, 2024 

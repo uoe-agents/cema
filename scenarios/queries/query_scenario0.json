@@ -5,6 +5,6 @@
     "action": "GoStraightJunction",
     "t_query": 140,
     "tense": "past",
-    "factual": "ChangeLaneRight"
+    "factual": "TurnRight"
   }
 ]

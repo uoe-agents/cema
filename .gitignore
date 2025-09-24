@@ -137,5 +137,8 @@ launch.json
 output/
 
 *.bak
+
+.ruff_cache/
+output/
 uv.lock
 llm/
