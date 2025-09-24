@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "xavi"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "gofi",
+    "igp2",
+    "scikit-learn>=1.7.1",
+    "seaborn>=0.13.2",
+    "simplenlg>=0.2.0",
+    "tqdm>=4.67.1",
+]
+
+[tool.uv.sources]
+igp2 = { git = "https://github.com/uoe-agents/IGP2" }
+gofi = { git = "https://github.com/gyevnarb/gofi" }

@@ -122,11 +122,11 @@ class XAVIAgent(ip.MCTSAgent):
         """
         t_start = time.time()
 
-        if self.query is None or self.query.t_query != user_query.t_query or \
-                self.query.tau != user_query.tau or self.query.t_action != user_query.t_action:
-            logger.debug("Resetting agent sampling state.")
-            self._cf_sampling_distribution = {"tau": None, "t_action": None}
-            self._cf_dataset_dict = {"tau": None, "t_action": None}
+        # if self.query is None or self.query.t_query != user_query.t_query or \
+        #         self.query.tau != user_query.tau or self.query.t_action != user_query.t_action:
+        #     logger.debug("Resetting agent sampling state.")
+        #     self._cf_sampling_distribution = {"tau": None, "t_action": None}
+        #     self._cf_dataset_dict = {"tau": None, "t_action": None}
 
         self._user_query = user_query
         self._user_query.fps = self.fps
@@ -187,7 +187,7 @@ class XAVIAgent(ip.MCTSAgent):
                 p = len(r) / len([reward.reward_components[comp] for item in items for reward in item.rewards]) if r else 0.0
                 r = np.sum(r) / len(r) if r else 0.0
                 return r, p
-            
+
             diffs = {}
             for component in self._reward.reward_components:
                 r_qp, p_qp = get_values(ref_items, component)
@@ -202,7 +202,7 @@ class XAVIAgent(ip.MCTSAgent):
 
         if tau_dataset is None:
             tau_causes, tau_rewards = None, None
-        else:   
+        else:
             query_present, query_not_present = split_by_query(tau_dataset)
             tau_rewards = []
             for item in tau_dataset:
@@ -245,6 +245,8 @@ class XAVIAgent(ip.MCTSAgent):
             agent_id = self.agent_id
             if self.query.type in [QueryType.WHY, QueryType.WHY_NOT]:
                 agent_id = self.query.agent_id
+            if t_slice[0] == t_slice[1]:
+                t_slice = (t_slice[0], None)
             if dataset is not None:
                 for item in dataset:
                     xs_.append(self._features.to_features(
@@ -286,7 +288,7 @@ class XAVIAgent(ip.MCTSAgent):
         """
         logger.info("Generating a what explanation.")
         if self.query.agent_id is None:
-            logger.warning(f"No Agent ID given for what-query. Falling back to ego ID.")
+            logger.warning("No Agent ID given for what-query. Falling back to ego ID.")
             self.query.agent_id = self.agent_id
 
         trajectory = self.total_observations[self.query.agent_id][0]
@@ -297,8 +299,8 @@ class XAVIAgent(ip.MCTSAgent):
 
         start_t = self.query.t_action
         if start_t >= len(trajectory):
-            logger.warning(f"Total trajectory for Agent {self.query.agent_id} is not "
-                           f"long enough for query! Falling back to final timestep.")
+            logger.warning("Total trajectory for Agent %d is not "
+                           "long enough for query! Falling back to final timestep.", self.query.agent_id)
             start_t = len(trajectory) - 1
         return [seg for seg in grouped_segments if seg.start <= start_t <= seg.end]
 
@@ -316,7 +318,7 @@ class XAVIAgent(ip.MCTSAgent):
             # self._get_counterfactuals(["tau"])
             tau = list(self.cf_datasets["tau"].values())
 
-        assert self._cf_dataset_dict["t_action"] is not None, f"Missing counterfactual dataset."
+        assert self._cf_dataset_dict["t_action"] is not None, "Missing counterfactual dataset."
         t_action = list(self.cf_datasets["t_action"].values())
 
         final_causes = self._teleological_causes(tau, t_action)
@@ -378,8 +380,18 @@ class XAVIAgent(ip.MCTSAgent):
         """
         logger.info("Generating counterfactual rollouts.")
 
+        if self.query.tau == self.query.t_action:
+            times = ["t_action"]
+
         for time_reference in times:
             self._generate_counterfactuals_from_time(time_reference)
+
+        if self.query.tau == self.query.t_action:
+            logger.info("Setting tau (%d) counterfactuals to t_action (%d).", 
+                        self.query.tau, self.query.t_action)
+            self.cf_datasets["tau"] = self.cf_datasets["t_action"]
+            self.cf_goals_probabilities["tau"] = self.cf_goals_probabilities["t_action"]
+            self.cf_sampling_distributions["tau"] = self.cf_sampling_distributions["t_action"]
 
 
     def _generate_counterfactuals_from_time(self, time_reference: str):
@@ -392,7 +404,7 @@ class XAVIAgent(ip.MCTSAgent):
         truncated_observations, previous_frame = truncate_observations(self.observations, t)
         self._cf_observations_dict[time_reference] = truncated_observations
 
-        logger.debug(f"Generating counterfactuals at {time_reference} ({t})")
+        logger.debug("Generating counterfactuals at %s (%d)", time_reference, t)
         if previous_frame:
             mcts = self._cf_mcts_dict[time_reference]
             goal_probabilities = self._cf_goal_probabilities_dict[time_reference]
@@ -498,9 +510,9 @@ class XAVIAgent(ip.MCTSAgent):
                 frame=frame,
                 meta=agents_metadata,
                 predictions=deterministic_trajectories)
-            
+
             # Record rollout data for sampling
-            goal_trajectories = {aid: (gp.goals_and_types[0], gp.all_trajectories[gp.goals_and_types[0]][0]) 
+            goal_trajectories = {aid: (gp.goals_and_types[0], gp.all_trajectories[gp.goals_and_types[0]][0])
                                 for aid, gp in deterministic_trajectories.items()}
             probabilities, data, reward_data = get_visit_probabilities(mcts.results, p_optimal=self._p_optimal)
             distribution.add_distribution(goal_trajectories, probabilities, data, reward_data)
@@ -664,7 +676,7 @@ class XAVIAgent(ip.MCTSAgent):
         return self._mcts_results_buffer
 
     @property
-    def sampling_distributions(self) -> Dict[str, Distribution]:
+    def cf_sampling_distributions(self) -> Dict[str, Distribution]:
         """ The sampling distribution for each time reference point. """
         return self._cf_sampling_distribution
 

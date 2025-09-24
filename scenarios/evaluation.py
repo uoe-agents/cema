@@ -122,10 +122,12 @@ def main(args) -> int:
         logger.info(cf_action_group)
         final_causes = causes[1]
         efficient_causes = causes[2]
+    elif query.type == xavi.QueryType.WHAT:
+        sys.exit("WHAT queries not supported in evaluation.py")
     else:
         final_causes = causes[0]
         efficient_causes = causes[1]
-    plot_explanation(final_causes, efficient_causes[0:2], query_str, plot_path_query)
+    plot_explanation(final_causes, efficient_causes[0:2], query_str, plot_path_query, scenario_id=args.sid)
 
 
     if args.norobust:

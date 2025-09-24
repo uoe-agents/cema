@@ -132,7 +132,10 @@ dmypy.json
 # PyCharm ignores
 .idea/
 .vscode/
+launch.json
 
 output/
 
 *.bak
+uv.lock
+llm/

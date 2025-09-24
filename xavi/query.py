@@ -48,11 +48,13 @@ class Query:
     exclusive: str = True
 
     fps: int = 20
-    tau_limits: np.ndarray = np.array([1, 5])  # Minimum and maximum distance of tau in seconds from the current time
+    tau_limits: np.ndarray = None  # Minimum and maximum distance of tau in seconds from the current time
     t_action_min: int = 1  # Minimum distance in seconds for the action start
-    time_limits = np.array([5, 5])  # Maximum lengths of the trajectories, both in past and future, in seconds.
+    time_limits: np.ndarray = None  # Maximum lengths of the trajectories, both in past and future, in seconds.
 
     def __post_init__(self):
+        self.tau_limits = np.array([1, 5])
+        self.time_limits = np.array([5, 5])
         self.__all_factual = self.type == QueryType.WHY_NOT or self.type == QueryType.WHAT_IF and not self.negative
         self.__matching = ActionMatching()
         self.type = QueryType(self.type)
