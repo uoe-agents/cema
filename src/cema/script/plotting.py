@@ -271,7 +271,7 @@ def plot_distribution_results(
                         style="Feature", kind="line", markers=True, hue_order=hue_order)
         time_str = r"$\tau=past$" if time == "past" else r"$\tau=present$"
         # g.figure.suptitle(f"Mechanistic causes ({time_str})")
-        g.set_xlabels(r"Smoothing $\alpha$")
+        g.set_xlabels(r"Smoothing $\beta$")
         n_features = df["Feature"].nunique()
         g.legend.set_title(f"Largest {n_features} Features")
         g.ax.axhline(y=0, color=".5")

@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "xavi"
+name = "cema"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -11,11 +11,18 @@ requires-python = ">=3.11"
 dependencies = [
     "gofi",
     "igp2",
+    "rich>=14.1.0",
     "scikit-learn>=1.7.1",
     "seaborn>=0.13.2",
     "simplenlg>=0.2.0",
     "tqdm>=4.67.1",
 ]
+
+[project.urls]
+Homepage = "https://github.com/uoe-agents/cema"
+
+[project.scripts]
+eval = "cema.script.evaluation:cli"
 
 [tool.uv.sources]
 igp2 = { git = "https://github.com/uoe-agents/IGP2" }
